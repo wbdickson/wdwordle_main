@@ -1,0 +1,258 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AES Wordle</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background: #ffffff;
+        margin: 0;
+        padding: 20px;
+    }
+    h1 { color: #333; }
+    #game-board {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+    }
+    .guess-row {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        margin: 5px 0;
+    }
+    .letter-box {
+        width: 50px;
+        height: 50px;
+        border: 2px solid #ccc;
+        font-size: 24px;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+    }
+    .keyboard {
+        margin-top: 20px;
+    }
+    .key {
+        padding: 10px;
+        margin: 3px;
+        font-size: 18px;
+        background: #ddd;
+        border: none;
+        cursor: pointer;
+        text-transform: uppercase;
+    }
+    .green { background: #6aaa64 !important; color: white; }
+    .yellow { background: #c9b458 !important; color: white; }
+    .grey { background: #787c7e !important; color: white; }
+    #message {
+        font-size: 24px;
+        margin-top: 20px;
+        color: #28a745;
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+<h1>AES Wordle</h1>
+<button id="start-btn">Start Game</button>
+
+<div id="game-board"></div>
+<div id="keyboard" class="keyboard"></div>
+<div id="message">Good luck!</div>
+<p>Total Guesses: <span id="guess-count">0</span></p>
+<button id="play-again-btn" style="display:none;">Play Again</button>
+
+<script>
+let words = [];
+let currentWord = '';
+let guess = [];
+let guessCount = 0;
+let keyboardState = {};
+
+const keyboardLayout = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['z','x','c','v','b','n','m']
+];
+
+// Load words from external file
+fetch('words.txt')
+    .then(response => response.text())
+    .then(text => {
+        words = text.split(/\r?\n/).map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+    });
+
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('play-again-btn').addEventListener('click', resetGame);
+
+function startGame() {
+    if (words.length === 0) {
+        alert('Word list not loaded yet. Please wait or check words.txt');
+        return;
+    }
+    document.getElementById('start-btn').style.display = 'none';
+    guessCount = 0;
+    keyboardState = {};
+    document.getElementById('guess-count').textContent = guessCount;
+    document.getElementById('message').textContent = 'Good luck!';
+    loadNewWord();
+    renderKeyboard();
+}
+
+function resetGame() {
+    fetch('words.txt')
+        .then(response => response.text())
+        .then(text => {
+            words = text.split(/\r?\n/).map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
+        });
+    document.getElementById('play-again-btn').style.display = 'none';
+    document.getElementById('game-board').innerHTML = '';
+    document.getElementById('keyboard').innerHTML = '';
+    document.getElementById('message').textContent = '';
+    document.getElementById('guess-count').textContent = '0';
+    document.getElementById('start-btn').style.display = 'inline-block';
+}
+
+function loadNewWord() {
+    if (words.length === 0) {
+        document.getElementById('message').textContent = 'All words guessed! Great job!';
+        document.getElementById('keyboard').innerHTML = '';
+        document.getElementById('play-again-btn').style.display = 'inline-block';
+        return;
+    }
+    currentWord = words[Math.floor(Math.random() * words.length)];
+    words = words.filter(w => w !== currentWord);
+    guess = [];
+    keyboardState = {};
+    document.getElementById('game-board').innerHTML = '';
+    document.getElementById('message').textContent = 'Good luck!';
+    renderKeyboard();
+    addNewRow();
+}
+
+function addNewRow() {
+    const board = document.getElementById('game-board');
+    const row = document.createElement('div');
+    row.className = 'guess-row';
+    for (let i = 0; i < currentWord.length; i++) {
+        const box = document.createElement('div');
+        box.className = 'letter-box';
+        row.appendChild(box);
+    }
+    board.appendChild(row);
+}
+
+function renderKeyboard() {
+    const kb = document.getElementById('keyboard');
+    kb.innerHTML = '';
+    keyboardLayout.forEach(row => {
+        const rowDiv = document.createElement('div');
+        row.forEach(letter => {
+            const btn = document.createElement('button');
+            btn.className = 'key';
+            btn.textContent = letter;
+            if (keyboardState[letter]) {
+                btn.classList.add(keyboardState[letter]);
+            }
+            btn.addEventListener('click', () => addLetter(letter));
+            rowDiv.appendChild(btn);
+        });
+        kb.appendChild(rowDiv);
+    });
+    const enterBtn = document.createElement('button');
+    enterBtn.className = 'key';
+    enterBtn.textContent = 'Enter';
+    enterBtn.addEventListener('click', checkGuess);
+    kb.appendChild(enterBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'key';
+    delBtn.textContent = 'Del';
+    delBtn.addEventListener('click', deleteLetter);
+    kb.appendChild(delBtn);
+}
+
+function addLetter(letter) {
+    if (guess.length < currentWord.length) {
+        guess.push(letter);
+        updateCurrentRow();
+    }
+}
+
+function deleteLetter() {
+    guess.pop();
+    updateCurrentRow();
+}
+
+function updateCurrentRow() {
+    const rows = document.querySelectorAll('.guess-row');
+    const currentRow = rows[rows.length - 1];
+    const boxes = currentRow.querySelectorAll('.letter-box');
+    boxes.forEach((box, i) => {
+        box.textContent = guess[i] || '';
+    });
+}
+
+function checkGuess() {
+    if (guess.length !== currentWord.length) {
+        alert('Not enough letters!');
+        return;
+    }
+    guessCount++;
+    document.getElementById('guess-count').textContent = guessCount;
+
+    const rows = document.querySelectorAll('.guess-row');
+    const currentRow = rows[rows.length - 1];
+    const boxes = currentRow.querySelectorAll('.letter-box');
+    const wordArray = currentWord.split('');
+    const used = Array(currentWord.length).fill(false);
+
+    for (let i = 0; i < guess.length; i++) {
+        if (guess[i] === wordArray[i]) {
+            boxes[i].classList.add('green');
+            updateKeyboardColor(guess[i], 'green');
+            used[i] = true;
+        }
+    }
+
+    for (let i = 0; i < guess.length; i++) {
+        if (!boxes[i].classList.contains('green')) {
+            const idx = wordArray.findIndex((l, j) => l === guess[i] && !used[j]);
+            if (idx !== -1) {
+                boxes[i].classList.add('yellow');
+                updateKeyboardColor(guess[i], 'yellow');
+            } else {
+                boxes[i].classList.add('grey');
+                updateKeyboardColor(guess[i], 'grey');
+            }
+        }
+    }
+
+    renderKeyboard();
+
+    if (guess.join('') === currentWord) {
+        document.getElementById('message').textContent = '🎉 Congratulations! 🎉';
+        setTimeout(loadNewWord, 2000);
+    } else {
+        guess = [];
+        addNewRow();
+    }
+}
+
+function updateKeyboardColor(letter, color) {
+    if (keyboardState[letter] === 'green') return;
+    if (keyboardState[letter] === 'yellow' && color === 'grey') return;
+    keyboardState[letter] = color;
+}
+</script>
+</body>
+</html>
