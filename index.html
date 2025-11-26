@@ -214,22 +214,29 @@ function checkGuess() {
     const currentRow = rows[rows.length - 1];
     const boxes = currentRow.querySelectorAll('.letter-box');
     const wordArray = currentWord.split('');
-    const used = Array(currentWord.length).fill(false);
 
+    // Count occurrences of each letter in the target word
+    const letterCount = {};
+    wordArray.forEach(letter => {
+        letterCount[letter] = (letterCount[letter] || 0) + 1;
+    });
+
+    // First pass: mark greens and reduce count
     for (let i = 0; i < guess.length; i++) {
         if (guess[i] === wordArray[i]) {
             boxes[i].classList.add('green');
             updateKeyboardColor(guess[i], 'green');
-            used[i] = true;
+            letterCount[guess[i]]--;
         }
     }
 
+    // Second pass: mark yellows and greys
     for (let i = 0; i < guess.length; i++) {
         if (!boxes[i].classList.contains('green')) {
-            const idx = wordArray.findIndex((l, j) => l === guess[i] && !used[j]);
-            if (idx !== -1) {
+            if (letterCount[guess[i]] > 0) {
                 boxes[i].classList.add('yellow');
                 updateKeyboardColor(guess[i], 'yellow');
+                letterCount[guess[i]]--;
             } else {
                 boxes[i].classList.add('grey');
                 updateKeyboardColor(guess[i], 'grey');
@@ -247,7 +254,6 @@ function checkGuess() {
         addNewRow();
     }
 }
-
 function updateKeyboardColor(letter, color) {
     if (keyboardState[letter] === 'green') return;
     if (keyboardState[letter] === 'yellow' && color === 'grey') return;
