@@ -6,5 +6,4 @@ ladybug
 rainbow
 cloud
 centipede
-sometimes
 sponge
